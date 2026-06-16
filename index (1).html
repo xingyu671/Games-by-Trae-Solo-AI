@@ -1,0 +1,2626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YORG.io 3D</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            overflow: hidden;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* ===== Top HUD ===== */
+        #top-hud {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 0 20px;
+            pointer-events: none;
+        }
+
+        #top-hud > * {
+            pointer-events: auto;
+        }
+
+        /* Resources panel */
+        #resources {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: rgba(20, 25, 40, 0.85);
+            border: 2px solid #2d3a5c;
+            border-radius: 8px;
+            padding: 10px 14px;
+            min-width: 160px;
+        }
+
+        .resource-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .resource-icon {
+            width: 18px;
+            height: 18px;
+            display: inline-block;
+            text-align: center;
+            line-height: 18px;
+            font-size: 12px;
+        }
+
+        .resource-label {
+            color: #8a9bc2;
+            flex: 1;
+            margin-left: 6px;
+        }
+
+        .resource-value {
+            color: #ffd700;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Circular Timer */
+        #timer-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        #timer-label {
+            font-size: 11px;
+            color: #8a9bc2;
+            letter-spacing: 2px;
+        }
+
+        #circular-timer {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        #timer-svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+            filter: drop-shadow(0 0 8px rgba(100, 150, 255, 0.3));
+        }
+
+        .timer-day-arc {
+            fill: none;
+            stroke: #ffcc33;
+            stroke-width: 10;
+        }
+
+        .timer-night-arc {
+            fill: none;
+            stroke: #4a6bcc;
+            stroke-width: 10;
+        }
+
+        .timer-progress {
+            fill: none;
+            stroke: #ffffff;
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+
+        #timer-day-display {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-family: 'Courier New', monospace;
+        }
+
+        .day-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .day-text {
+            font-size: 10px;
+            color: #8a9bc2;
+            letter-spacing: 1px;
+        }
+
+        #timer-pointer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 50px;
+            background: linear-gradient(to top, transparent, #fff);
+            transform-origin: bottom center;
+            transform: translate(-50%, -100%) rotate(0deg);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+            z-index: 2;
+        }
+
+        #timer-center-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            background: #fff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+            z-index: 3;
+        }
+
+        /* Controls panel */
+        #controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+        }
+
+        .ctrl-row {
+            display: flex;
+            gap: 6px;
+        }
+
+        .control-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(20, 25, 40, 0.85);
+            border: 2px solid #2d3a5c;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .control-btn:hover {
+            background: rgba(60, 80, 130, 0.9);
+            border-color: #5a7dbc;
+        }
+
+        .control-btn.active {
+            background: rgba(80, 120, 180, 0.9);
+            border-color: #ffd700;
+        }
+
+        .control-btn.danger:hover {
+            background: rgba(180, 60, 60, 0.9);
+            border-color: #ff6060;
+        }
+
+        /* ===== Bottom HUD (Building Menu) ===== */
+        #bottom-hud {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+        }
+
+        #building-menu {
+            display: flex;
+            gap: 6px;
+            background: rgba(20, 25, 40, 0.85);
+            border: 2px solid #2d3a5c;
+            border-radius: 8px;
+            padding: 8px;
+        }
+
+        .building-btn {
+            width: 56px;
+            height: 56px;
+            background: rgba(40, 50, 80, 0.6);
+            border: 2px solid #3a4a70;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .building-btn:hover {
+            background: rgba(70, 90, 140, 0.8);
+            border-color: #5a7dbc;
+            transform: translateY(-2px);
+        }
+
+        .building-btn.selected {
+            background: rgba(100, 150, 200, 0.9);
+            border-color: #ffd700;
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
+        }
+
+        .building-btn .icon {
+            font-size: 22px;
+            line-height: 1;
+        }
+
+        .building-btn .cost {
+            font-size: 9px;
+            color: #ffd700;
+            margin-top: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .building-btn .key-hint {
+            position: absolute;
+            top: 2px;
+            right: 3px;
+            font-size: 8px;
+            color: #8a9bc2;
+            background: rgba(0, 0, 0, 0.4);
+            padding: 1px 3px;
+            border-radius: 2px;
+        }
+
+        /* Minimap */
+        #minimap-container {
+            width: 150px;
+            height: 90px;
+            background: rgba(20, 25, 40, 0.85);
+            border: 2px solid #2d3a5c;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #minimap {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* ===== Building Info Panel ===== */
+        #building-info {
+            position: absolute;
+            right: 20px;
+            top: 180px;
+            width: 240px;
+            background: rgba(20, 25, 40, 0.92);
+            border: 2px solid #2d3a5c;
+            border-radius: 10px;
+            padding: 14px;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        #building-info.visible {
+            display: block;
+        }
+
+        #info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #3a4a70;
+        }
+
+        #info-name {
+            font-size: 15px;
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        #info-level {
+            font-size: 11px;
+            color: #8a9bc2;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 12px;
+            color: #d0d8e8;
+        }
+
+        .stat span:first-child {
+            color: #8a9bc2;
+        }
+
+        .info-actions {
+            margin-top: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .action-btn {
+            padding: 8px 12px;
+            background: rgba(60, 80, 130, 0.8);
+            border: 1px solid #5a7dbc;
+            border-radius: 5px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.15s;
+        }
+
+        .action-btn:hover {
+            background: rgba(80, 110, 170, 0.9);
+        }
+
+        .action-btn.danger {
+            background: rgba(120, 50, 50, 0.6);
+            border-color: #c04040;
+        }
+
+        .action-btn.danger:hover {
+            background: rgba(180, 60, 60, 0.8);
+        }
+
+        .action-btn.gold {
+            background: rgba(140, 110, 30, 0.7);
+            border-color: #ffd700;
+            color: #ffd700;
+        }
+
+        .action-btn.gold:hover {
+            background: rgba(180, 140, 40, 0.8);
+        }
+
+        .action-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* ===== Night Overlay ===== */
+        #night-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 50;
+            transition: background 1s, box-shadow 1s;
+            background: transparent;
+        }
+
+        #night-overlay.night {
+            background: radial-gradient(ellipse at center, transparent 30%, rgba(20, 20, 80, 0.5) 100%);
+            box-shadow: inset 0 0 150px rgba(0, 0, 50, 0.7);
+        }
+
+        /* ===== Start Screen ===== */
+        #start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f1a35 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+        }
+
+        #start-screen.hidden {
+            display: none;
+        }
+
+        #start-screen h1 {
+            font-size: 56px;
+            background: linear-gradient(135deg, #ffd700 0%, #ff6b6b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            letter-spacing: 4px;
+        }
+
+        #start-screen .subtitle {
+            font-size: 16px;
+            color: #8a9bc2;
+            margin-bottom: 40px;
+            letter-spacing: 2px;
+        }
+
+        #start-screen .instructions {
+            background: rgba(30, 40, 70, 0.6);
+            padding: 25px 35px;
+            border-radius: 12px;
+            max-width: 500px;
+            margin-bottom: 30px;
+            border: 1px solid #3a4a70;
+        }
+
+        #start-screen .instructions h3 {
+            color: #ffd700;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+
+        #start-screen .instructions p {
+            margin-bottom: 6px;
+            line-height: 1.6;
+            color: #c0c8d8;
+            font-size: 13px;
+        }
+
+        #start-btn {
+            padding: 16px 60px;
+            background: linear-gradient(135deg, #ffd700 0%, #ff9500 100%);
+            border: none;
+            border-radius: 8px;
+            color: #1a1a2e;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            letter-spacing: 3px;
+            transition: all 0.2s;
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.3);
+        }
+
+        #start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(255, 215, 0, 0.5);
+        }
+
+        /* ===== Game Over ===== */
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 400;
+        }
+
+        #game-over.visible {
+            display: flex;
+        }
+
+        #game-over h1 {
+            font-size: 48px;
+            color: #ff4444;
+            margin-bottom: 12px;
+            text-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+        }
+
+        #game-over p {
+            font-size: 18px;
+            margin-bottom: 25px;
+            color: #c0c8d8;
+        }
+
+        #restart-btn {
+            padding: 14px 50px;
+            background: linear-gradient(135deg, #ffd700 0%, #ff9500 100%);
+            border: none;
+            border-radius: 8px;
+            color: #1a1a2e;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            letter-spacing: 2px;
+            transition: all 0.2s;
+        }
+
+        #restart-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* ===== Status Message ===== */
+        #status-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(20, 25, 40, 0.9);
+            border: 2px solid #ffd700;
+            border-radius: 10px;
+            padding: 20px 40px;
+            font-size: 18px;
+            color: #ffd700;
+            z-index: 150;
+            display: none;
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        #status-message.visible {
+            display: block;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 215, 0, 0.3); }
+            50% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.6); }
+        }
+
+        /* Move mode indicator */
+        #move-mode-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(80, 130, 200, 0.3);
+            border: 2px dashed #5a7dbc;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 12px;
+            color: #a0c0ff;
+            z-index: 150;
+            display: none;
+            letter-spacing: 1px;
+        }
+
+        #move-mode-indicator.visible {
+            display: block;
+        }
+
+        /* Health bar overlay */
+        #base-health {
+            position: absolute;
+            bottom: 120px;
+            left: 20px;
+            background: rgba(20, 25, 40, 0.85);
+            border: 2px solid #2d3a5c;
+            border-radius: 6px;
+            padding: 8px 12px;
+            z-index: 100;
+            display: none;
+            min-width: 180px;
+        }
+
+        #base-health.visible {
+            display: block;
+        }
+
+        .health-bar-label {
+            font-size: 11px;
+            color: #8a9bc2;
+            margin-bottom: 4px;
+        }
+
+        .health-bar-outer {
+            width: 100%;
+            height: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .health-bar-inner {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #8bc34a);
+            transition: width 0.3s;
+        }
+
+        .health-bar-inner.damaged {
+            background: linear-gradient(90deg, #ff9800, #ffc107);
+        }
+
+        .health-bar-inner.critical {
+            background: linear-gradient(90deg, #f44336, #ff5722);
+        }
+
+        /* Wave notification */
+        .wave-notice {
+            position: absolute;
+            top: 140px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(200, 50, 50, 0.8);
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #fff;
+            letter-spacing: 2px;
+            z-index: 150;
+            pointer-events: none;
+            animation: fadeOut 3s forwards;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            70% { opacity: 1; }
+            100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="canvas-container"></div>
+
+        <div id="night-overlay"></div>
+
+        <!-- Top HUD -->
+        <div id="top-hud">
+            <div id="resources">
+                <div class="resource-item">
+                    <span class="resource-icon">💎</span>
+                    <span class="resource-label">水晶</span>
+                    <span class="resource-value" id="crystal-count">50</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-icon">⛏️</span>
+                    <span class="resource-label">铁矿</span>
+                    <span class="resource-value" id="iron-count">0</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-icon">🪵</span>
+                    <span class="resource-label">木材</span>
+                    <span class="resource-value" id="wood-count">0</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-icon">⚙️</span>
+                    <span class="resource-label">钢</span>
+                    <span class="resource-value" id="steel-count">0</span>
+                </div>
+                <div class="resource-item">
+                    <span class="resource-icon">☢️</span>
+                    <span class="resource-label">铀</span>
+                    <span class="resource-value" id="uranium-count">0</span>
+                </div>
+            </div>
+
+            <div id="timer-container">
+                <div id="circular-timer">
+                    <svg id="timer-svg" viewBox="-55 -55 110 110">
+                        <!-- Day arc (yellow) - top half -->
+                        <path class="timer-day-arc" d="" id="timer-day-arc"/>
+                        <!-- Night arc (blue) - bottom half -->
+                        <path class="timer-night-arc" d="" id="timer-night-arc"/>
+                        <!-- Progress marker circle -->
+                        <circle id="timer-marker" cx="0" cy="-45" r="4" fill="#fff" stroke="#ffd700" stroke-width="1"/>
+                    </svg>
+                    <div id="timer-pointer"></div>
+                    <div id="timer-center-dot"></div>
+                    <div id="timer-day-display">
+                        <div class="day-number" id="day-number">1</div>
+                        <div class="day-text" id="phase-text">早晨</div>
+                    </div>
+                </div>
+                <div id="timer-label">YORG.IO</div>
+            </div>
+
+            <div id="controls-panel">
+                <div class="ctrl-row">
+                    <button class="control-btn" id="pause-btn" title="暂停 (Space)">⏸️</button>
+                    <button class="control-btn" id="fast-btn" title="快进 (Q)">⏩</button>
+                </div>
+                <div class="ctrl-row">
+                    <button class="control-btn danger" id="cancel-btn" title="取消选择 (Esc)">✕</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status message -->
+        <div id="status-message">请先放置主基地 (按 B 键选择)</div>
+
+        <!-- Move mode indicator -->
+        <div id="move-mode-indicator">移动模式 - WASD: 水平 | ↑↓: 竖直 | Esc: 退出</div>
+
+        <!-- Base health -->
+        <div id="base-health">
+            <div class="health-bar-label">主基地 HP</div>
+            <div class="health-bar-outer">
+                <div class="health-bar-inner" id="health-bar" style="width:100%"></div>
+            </div>
+        </div>
+
+        <!-- Bottom HUD -->
+        <div id="bottom-hud">
+            <div id="building-menu"></div>
+            <div id="minimap-container">
+                <canvas id="minimap"></canvas>
+            </div>
+        </div>
+
+        <!-- Building Info Panel -->
+        <div id="building-info">
+            <div id="info-header">
+                <div>
+                    <div id="info-name">建筑</div>
+                    <div id="info-level">Lv. 1</div>
+                </div>
+                <button class="control-btn danger" id="close-info-btn" style="width:28px;height:28px;font-size:14px;">✕</button>
+            </div>
+            <div id="info-stats"></div>
+            <div class="info-actions">
+                <button class="action-btn gold" id="upgrade-btn">升级</button>
+                <button class="action-btn" id="move-btn">🏃 移动 (M)</button>
+                <button class="action-btn danger" id="delete-btn">🗑️ 拆除</button>
+            </div>
+        </div>
+
+        <!-- Game Over -->
+        <div id="game-over">
+            <h1>GAME OVER</h1>
+            <p>你坚持了 <span id="final-wave">0</span> 天</p>
+            <button id="restart-btn">重新开始</button>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="start-screen">
+            <h1>YORG.io</h1>
+            <p class="subtitle">3D VOXEL EDITION</p>
+
+            <div class="instructions">
+                <h3>🎮 操作指南</h3>
+                <p>• <b>鼠标左键</b> - 放置建筑 / 选中已有建筑</p>
+                <p>• <b>鼠标右键拖动</b> - 旋转视角</p>
+                <p>• <b>滚轮</b> - 缩放视图</p>
+                <p>• <b>WASD</b> - 平移相机 / 移动模式下水平移动</p>
+                <p>• <b>↑ ↓</b> - 调整建造高度 / 移动模式下竖直移动</p>
+                <p>• <b>Esc</b> - 取消选择 / 退出移动模式</p>
+            </div>
+
+            <div class="instructions">
+                <h3>🏗️ 游戏目标</h3>
+                <p>• 先放置<b>主基地 🏠</b> 以开始游戏</p>
+                <p>• 白天建造矿场、工厂、防御塔</p>
+                <p>• 夜晚僵尸会从地图外涌向主基地</p>
+                <p>• 坚持更多天数，抵御更强的敌人！</p>
+            </div>
+
+            <button id="start-btn">START</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    // =====================================================================
+    // CONSTANTS
+    // =====================================================================
+    const CELL = 1;
+    const WORLD_SIZE = 30;
+    const MAX_HEIGHT = 10;
+    const DAY_SECONDS = 60;
+    const NIGHT_SECONDS = 30;
+
+    const COLORS = {
+        ground: 0x3d7a37,
+        crystal: 0xE53935,
+        iron: 0x78909C,
+        wood: 0x8D6E63,
+        uranium: 0x66BB6A,
+        base: 0x4CAF50,
+        transporter: 0xB0B0B0,
+        wall: 0x607D8B,
+        cannon: 0xFF5722,
+        arrow: 0x8BC34A,
+        lightning: 0x00BCD4,
+        shield: 0x3F51B5,
+        factory: 0xFFA726,
+        mine: 0x795548
+    };
+
+    // =====================================================================
+    // BUILDING DEFINITIONS (with 3D model generators)
+    // =====================================================================
+    const BUILDINGS = {
+        BASE: {
+            name: '主基地', cost: 0, color: COLORS.base,
+            desc: '核心建筑。保护好它！',
+            maxLevel: 5, health: 500
+        },
+        CRYSTAL_MINE: {
+            name: '水晶矿', cost: 15, color: COLORS.crystal,
+            desc: '产出水晶', output: 'crystal', outputRate: 1.0,
+            maxLevel: 5, health: 100, needsNode: 'crystal'
+        },
+        IRON_MINE: {
+            name: '铁矿', cost: 15, color: COLORS.iron,
+            desc: '产出铁矿', output: 'iron', outputRate: 0.8,
+            maxLevel: 5, health: 100, needsNode: 'iron'
+        },
+        HARVESTER: {
+            name: '伐木场', cost: 15, color: COLORS.wood,
+            desc: '产出木材', output: 'wood', outputRate: 1.2,
+            maxLevel: 5, health: 100, needsNode: 'wood'
+        },
+        URANIUM_MINE: {
+            name: '铀矿', cost: 40, color: COLORS.uranium,
+            desc: '产出铀', output: 'uranium', outputRate: 0.3,
+            maxLevel: 5, health: 100, needsNode: 'uranium'
+        },
+        TRANSPORTER: {
+            name: '传送带', cost: 5, color: COLORS.transporter,
+            desc: '连接建筑。需要传送带才能生产！',
+            maxLevel: 1, health: 50, isTransporter: true
+        },
+        WALL: {
+            name: '城墙', cost: 8, color: COLORS.wall,
+            desc: '阻挡敌人',
+            maxLevel: 3, health: 250
+        },
+        CANNON_TOWER: {
+            name: '炮塔', cost: 30, color: COLORS.cannon,
+            desc: '高伤害范围攻击。需炮弹',
+            maxLevel: 5, health: 150, range: 6, damage: 25, fireRate: 1.2,
+            ammo: 'cannonBall', ammoCost: 1
+        },
+        ARROW_TOWER: {
+            name: '箭塔', cost: 20, color: COLORS.arrow,
+            desc: '快速单体攻击。需箭矢',
+            maxLevel: 5, health: 120, range: 7, damage: 12, fireRate: 0.4,
+            ammo: 'arrow', ammoCost: 1
+        },
+        LIGHTNING_TOWER: {
+            name: '闪电塔', cost: 60, color: COLORS.lightning,
+            desc: '链式闪电。需核能',
+            maxLevel: 5, health: 180, range: 8, damage: 40, fireRate: 2.0,
+            ammo: 'nuclear', ammoCost: 1
+        },
+        CANNON_BALL_FACTORY: {
+            name: '炮弹工厂', cost: 25, color: COLORS.cannon,
+            desc: '铁 → 炮弹',
+            maxLevel: 3, health: 100,
+            recipe: { input: { iron: 1 }, output: { cannonBall: 1 }, time: 3 }
+        },
+        ARROW_FACTORY: {
+            name: '箭矢工厂', cost: 30, color: COLORS.arrow,
+            desc: '钢 + 木 → 箭矢',
+            maxLevel: 3, health: 100,
+            recipe: { input: { steel: 1, wood: 1 }, output: { arrow: 2 }, time: 4 }
+        },
+        STEEL_FACTORY: {
+            name: '钢铁厂', cost: 25, color: 0x7890bc,
+            desc: '铁 + 木 → 钢',
+            maxLevel: 3, health: 100,
+            recipe: { input: { iron: 2, wood: 1 }, output: { steel: 1 }, time: 5 }
+        },
+        NUCLEAR_REACTOR: {
+            name: '核反应堆', cost: 80, color: COLORS.lightning,
+            desc: '铀 → 核能',
+            maxLevel: 3, health: 150,
+            recipe: { input: { uranium: 1 }, output: { nuclear: 1 }, time: 6 }
+        }
+    };
+
+    // =====================================================================
+    // 3D MODEL GENERATORS
+    // =====================================================================
+    function makeBuildingModel(type, level = 1) {
+        const def = BUILDINGS[type];
+        const g = new THREE.Group();
+        const color = def.color;
+        const h = 0.8 + Math.min(level * 0.05, 0.3); // Slightly taller at higher levels
+
+        // Base platform for all buildings
+        const platform = new THREE.Mesh(
+            new THREE.BoxGeometry(0.95, 0.1, 0.95),
+            new THREE.MeshLambertMaterial({ color: 0x3a4050 })
+        );
+        platform.position.y = 0.05;
+        platform.castShadow = true;
+        platform.receiveShadow = true;
+        g.add(platform);
+
+        if (type === 'BASE') {
+            // Big fortress-like base
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(0.9, 0.6, 0.9),
+                new THREE.MeshLambertMaterial({ color })
+            );
+            body.position.y = 0.35;
+            body.castShadow = true;
+            g.add(body);
+
+            // Roof
+            const roof = new THREE.Mesh(
+                new THREE.ConeGeometry(0.7, 0.4, 4),
+                new THREE.MeshLambertMaterial({ color: 0x2e7d32 })
+            );
+            roof.position.y = 0.85;
+            roof.rotation.y = Math.PI / 4;
+            roof.castShadow = true;
+            g.add(roof);
+
+            // Flag
+            const pole = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.02, 0.02, 0.4),
+                new THREE.MeshLambertMaterial({ color: 0x4a2c0a })
+            );
+            pole.position.y = 1.15;
+            g.add(pole);
+
+            const flag = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, 0.12, 0.02),
+                new THREE.MeshLambertMaterial({ color: 0xffd700 })
+            );
+            flag.position.set(0.1, 1.25, 0);
+            g.add(flag);
+
+            // Door
+            const door = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, 0.3, 0.02),
+                new THREE.MeshLambertMaterial({ color: 0x3e2723 })
+            );
+            door.position.set(0, 0.35, 0.46);
+            g.add(door);
+
+        } else if (type === 'CRYSTAL_MINE' || type === 'IRON_MINE' || type === 'HARVESTER' || type === 'URANIUM_MINE') {
+            // Mine: hut with extractable resource on top
+            const hut = new THREE.Mesh(
+                new THREE.BoxGeometry(0.7, 0.4, 0.7),
+                new THREE.MeshLambertMaterial({ color: 0x6d4c2a })
+            );
+            hut.position.y = 0.3;
+            hut.castShadow = true;
+            g.add(hut);
+
+            // Roof
+            const roof = new THREE.Mesh(
+                new THREE.ConeGeometry(0.55, 0.3, 4),
+                new THREE.MeshLambertMaterial({ color: 0x4a2c0a })
+            );
+            roof.position.y = 0.65;
+            roof.rotation.y = Math.PI / 4;
+            roof.castShadow = true;
+            g.add(roof);
+
+            // Resource pile on top / front
+            const resGeo = type === 'HARVESTER'
+                ? new THREE.BoxGeometry(0.2, 0.35, 0.2)
+                : new THREE.OctahedronGeometry(0.18);
+            const res = new THREE.Mesh(
+                resGeo,
+                new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.3 })
+            );
+            res.position.set(0, 0.9, 0);
+            res.castShadow = true;
+            g.add(res);
+            g.userData.resourceTop = res; // reference for animation
+
+        } else if (type === 'TRANSPORTER') {
+            // Flat conveyor belt
+            const beltBase = new THREE.Mesh(
+                new THREE.BoxGeometry(0.95, 0.15, 0.95),
+                new THREE.MeshLambertMaterial({ color: 0x404040 })
+            );
+            beltBase.position.y = 0.15;
+            beltBase.receiveShadow = true;
+            g.add(beltBase);
+
+            // Belt stripes (moving visually)
+            for (let i = -3; i <= 3; i++) {
+                const stripe = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.9, 0.02, 0.08),
+                    new THREE.MeshLambertMaterial({ color: 0x606060 })
+                );
+                stripe.position.set(0, 0.24, i * 0.12);
+                g.add(stripe);
+            }
+
+            // Edge rails
+            const railMat = new THREE.MeshLambertMaterial({ color: 0x808080 });
+            const rail1 = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.08, 0.05), railMat);
+            rail1.position.set(0, 0.25, 0.48);
+            g.add(rail1);
+            const rail2 = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.08, 0.05), railMat);
+            rail2.position.set(0, 0.25, -0.48);
+            g.add(rail2);
+
+        } else if (type === 'WALL') {
+            // Stone wall with crenellations
+            const wallMain = new THREE.Mesh(
+                new THREE.BoxGeometry(0.95, 0.65, 0.95),
+                new THREE.MeshLambertMaterial({ color })
+            );
+            wallMain.position.y = 0.45;
+            wallMain.castShadow = true;
+            g.add(wallMain);
+
+            // Crenellations (battlements)
+            const battlementMat = new THREE.MeshLambertMaterial({ color: 0x455a64 });
+            for (let dx = -1; dx <= 1; dx += 2) {
+                for (let dz = -1; dz <= 1; dz += 2) {
+                    const c = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), battlementMat);
+                    c.position.set(dx * 0.25, 0.88, dz * 0.25);
+                    c.castShadow = true;
+                    g.add(c);
+                }
+            }
+
+        } else if (type === 'CANNON_TOWER') {
+            // Tower base + rotating cannon
+            const towerBase = new THREE.Mesh(
+                new THREE.BoxGeometry(0.85, 0.5, 0.85),
+                new THREE.MeshLambertMaterial({ color: 0x5d4037 })
+            );
+            towerBase.position.y = 0.35;
+            towerBase.castShadow = true;
+            g.add(towerBase);
+
+            // Rotating cannon part
+            const cannonGroup = new THREE.Group();
+            cannonGroup.position.y = 0.6;
+
+            const cannonBody = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.3, 0.3, 0.3, 8),
+                new THREE.MeshLambertMaterial({ color })
+            );
+            cannonBody.rotation.z = Math.PI / 2;
+            cannonBody.castShadow = true;
+            cannonGroup.add(cannonBody);
+
+            const barrel = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.08, 0.1, 0.5, 8),
+                new THREE.MeshLambertMaterial({ color: 0x333333 })
+            );
+            barrel.rotation.z = Math.PI / 2;
+            barrel.position.x = 0.35;
+            barrel.castShadow = true;
+            cannonGroup.add(barrel);
+
+            g.add(cannonGroup);
+            g.userData.turret = cannonGroup;
+
+        } else if (type === 'ARROW_TOWER') {
+            // Wooden watchtower with crossbow
+            const towerBase = new THREE.Mesh(
+                new THREE.BoxGeometry(0.75, 0.8, 0.75),
+                new THREE.MeshLambertMaterial({ color: 0x795548 })
+            );
+            towerBase.position.y = 0.5;
+            towerBase.castShadow = true;
+            g.add(towerBase);
+
+            // Platform top
+            const platformTop = new THREE.Mesh(
+                new THREE.BoxGeometry(0.9, 0.1, 0.9),
+                new THREE.MeshLambertMaterial({ color: 0x4a2c0a })
+            );
+            platformTop.position.y = 0.95;
+            g.add(platformTop);
+
+            // Crossbow / rotating part
+            const turretGroup = new THREE.Group();
+            turretGroup.position.y = 1.05;
+            const crossbow = new THREE.Mesh(
+                new THREE.BoxGeometry(0.15, 0.15, 0.5),
+                new THREE.MeshLambertMaterial({ color })
+            );
+            crossbow.castShadow = true;
+            turretGroup.add(crossbow);
+
+            g.add(turretGroup);
+            g.userData.turret = turretGroup;
+
+        } else if (type === 'LIGHTNING_TOWER') {
+            // Tall tower with glowing orb
+            const towerBase = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.35, 0.45, 0.9, 8),
+                new THREE.MeshLambertMaterial({ color: 0x37474f })
+            );
+            towerBase.position.y = 0.55;
+            towerBase.castShadow = true;
+            g.add(towerBase);
+
+            // Ring
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(0.35, 0.05, 6, 16),
+                new THREE.MeshLambertMaterial({ color: 0x546e7a })
+            );
+            ring.position.y = 1.05;
+            ring.rotation.x = Math.PI / 2;
+            g.add(ring);
+
+            // Glowing orb
+            const orb = new THREE.Mesh(
+                new THREE.SphereGeometry(0.22, 12, 12),
+                new THREE.MeshLambertMaterial({
+                    color, emissive: color, emissiveIntensity: 0.6
+                })
+            );
+            orb.position.y = 1.25;
+            g.add(orb);
+            g.userData.orb = orb;
+
+        } else if (type === 'CANNON_BALL_FACTORY' || type === 'ARROW_FACTORY' ||
+                   type === 'STEEL_FACTORY' || type === 'NUCLEAR_REACTOR') {
+            // Factory with chimney
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(0.8, 0.55, 0.8),
+                new THREE.MeshLambertMaterial({ color })
+            );
+            body.position.y = 0.4;
+            body.castShadow = true;
+            g.add(body);
+
+            // Metal roof
+            const roof = new THREE.Mesh(
+                new THREE.BoxGeometry(0.85, 0.12, 0.85),
+                new THREE.MeshLambertMaterial({ color: 0x555555 })
+            );
+            roof.position.y = 0.73;
+            g.add(roof);
+
+            // Chimney
+            const chimney = new THREE.Mesh(
+                new THREE.BoxGeometry(0.18, 0.4, 0.18),
+                new THREE.MeshLambertMaterial({ color: 0x333333 })
+            );
+            chimney.position.set(0.25, 1.0, 0.25);
+            g.add(chimney);
+
+            // Door/vents
+            const vent = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 0.15, 0.02),
+                new THREE.MeshLambertMaterial({ color: 0x222222 })
+            );
+            vent.position.set(0, 0.45, 0.41);
+            g.add(vent);
+
+            if (type === 'NUCLEAR_REACTOR') {
+                // Add glowing core
+                const core = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.12, 8, 8),
+                    new THREE.MeshLambertMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.6 })
+                );
+                core.position.set(0, 0.5, 0);
+                g.add(core);
+                g.userData.orb = core;
+            }
+        }
+
+        return g;
+    }
+
+    // =====================================================================
+    // GAME STATE
+    // =====================================================================
+    const state = {
+        started: false,          // true once base is placed
+        day: 1,
+        time: 0,                 // 0..1 progress within current phase
+        phase: 'day',            // 'day' | 'night'
+        elapsedInPhase: 0,
+        isPaused: false,
+        isFast: false,
+        crystals: 50,
+        resources: { crystal: 0, iron: 0, wood: 0, steel: 0, uranium: 0, nuclear: 0, cannonBall: 0, arrow: 0, arrowShaft: 0 },
+        selectedType: null,      // type of building to place (string) or null
+        selectedBuilding: null,  // existing selected building
+        moveMode: false,         // moving selected building
+        currentY: 0,
+        baseLevel: 1,
+        basePlaced: false,
+        gameOver: false
+    };
+
+    // =====================================================================
+    // WORLD DATA
+    // =====================================================================
+    let scene, camera, renderer, raycaster;
+    let groundPlane;
+    let buildings = [];           // array of { type, mesh, pos, level, health, ... }
+    let zombies = [];
+    let projectiles = [];
+    let resourceNodes = [];
+    let previewMesh = null;       // ghost mesh showing where we'll place
+    let ghostMoveMesh = null;     // mesh showing where moving building will go
+    const buildingMap = new Map(); // "x,y,z" -> building
+
+    // Camera control
+    let cameraAngleX = 0.7;
+    let cameraAngleY = 0.8;
+    let cameraDist = 18;
+    let cameraTarget = new THREE.Vector3(WORLD_SIZE / 2, 0, WORLD_SIZE / 2);
+    let isRightDragging = false;
+    let lastMouseX = 0, lastMouseY = 0;
+    let mouseNDC = new THREE.Vector2();
+
+    // =====================================================================
+    // INITIALIZATION
+    // =====================================================================
+    function initThree() {
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87ceeb);
+        scene.fog = new THREE.Fog(0x87ceeb, 25, 60);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+        updateCamera();
+
+        // Lights
+        const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+        scene.add(ambient);
+
+        const sun = new THREE.DirectionalLight(0xffeedd, 0.9);
+        sun.position.set(20, 30, 15);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(1024, 1024);
+        sun.shadow.camera.left = -WORLD_SIZE;
+        sun.shadow.camera.right = WORLD_SIZE * 2;
+        sun.shadow.camera.top = WORLD_SIZE * 2;
+        sun.shadow.camera.bottom = -WORLD_SIZE;
+        sun.shadow.camera.near = 1;
+        sun.shadow.camera.far = 100;
+        scene.add(sun);
+        scene.userData.sun = sun;
+
+        // Ground
+        const groundGeo = new THREE.PlaneGeometry(WORLD_SIZE, WORLD_SIZE);
+        const groundMat = new THREE.MeshLambertMaterial({ color: COLORS.ground });
+        groundPlane = new THREE.Mesh(groundGeo, groundMat);
+        groundPlane.rotation.x = -Math.PI / 2;
+        groundPlane.position.set(WORLD_SIZE / 2, 0, WORLD_SIZE / 2);
+        groundPlane.receiveShadow = true;
+        groundPlane.userData.isGround = true;
+        scene.add(groundPlane);
+
+        // Grid lines
+        const gridHelper = new THREE.GridHelper(WORLD_SIZE, WORLD_SIZE, 0x2d5a27, 0x2d5a27);
+        gridHelper.position.set(WORLD_SIZE / 2, 0.01, WORLD_SIZE / 2);
+        gridHelper.material.transparent = true;
+        gridHelper.material.opacity = 0.4;
+        scene.add(gridHelper);
+
+        raycaster = new THREE.Raycaster();
+
+        window.addEventListener('resize', onResize);
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function updateCamera() {
+        const tx = cameraTarget.x;
+        const ty = cameraTarget.y;
+        const tz = cameraTarget.z;
+        const x = tx + cameraDist * Math.sin(cameraAngleX) * Math.cos(cameraAngleY);
+        const y = ty + cameraDist * Math.sin(cameraAngleY);
+        const z = tz + cameraDist * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
+        camera.position.set(x, Math.max(y, 2), z);
+        camera.lookAt(tx, ty, tz);
+    }
+
+    // =====================================================================
+    // RESOURCE NODES
+    // =====================================================================
+    function generateResourceNodes() {
+        const cx = WORLD_SIZE / 2;
+        const cz = WORLD_SIZE / 2;
+        const types = [
+            { type: 'crystal', count: 10, color: COLORS.crystal },
+            { type: 'iron', count: 10, color: COLORS.iron },
+            { type: 'wood', count: 10, color: COLORS.wood },
+            { type: 'uranium', count: 5, color: COLORS.uranium }
+        ];
+
+        types.forEach(spec => {
+            for (let i = 0; i < spec.count; i++) {
+                let x, z, tries = 0;
+                do {
+                    x = Math.floor(Math.random() * WORLD_SIZE);
+                    z = Math.floor(Math.random() * WORLD_SIZE);
+                    tries++;
+                } while ((Math.abs(x - cx) < 3 && Math.abs(z - cz) < 3 ||
+                          buildingMap.has(`${x},0,${z}`)) && tries < 50);
+
+                const node = {
+                    type: spec.type,
+                    x, z,
+                    depleted: false,
+                    mesh: null
+                };
+                const mesh = new THREE.Mesh(
+                    new THREE.OctahedronGeometry(0.2),
+                    new THREE.MeshLambertMaterial({
+                        color: spec.color,
+                        emissive: spec.color,
+                        emissiveIntensity: 0.4
+                    })
+                );
+                mesh.position.set(x + 0.5, 0.25, z + 0.5);
+                mesh.castShadow = true;
+                mesh.userData.node = node;
+                scene.add(mesh);
+                node.mesh = mesh;
+                resourceNodes.push(node);
+            }
+        });
+    }
+
+    // =====================================================================
+    // BUILDING PLACEMENT / REMOVAL
+    // =====================================================================
+    function posKey(x, y, z) { return `${x},${y},${z}`; }
+
+    function canPlaceAt(x, y, z) {
+        if (x < 0 || x >= WORLD_SIZE || z < 0 || z >= WORLD_SIZE) return false;
+        if (y < 0 || y >= MAX_HEIGHT) return false;
+        if (buildingMap.has(posKey(x, y, z))) return false;
+        return true;
+    }
+
+    function findNodeAt(x, z, type) {
+        return resourceNodes.find(n => !n.depleted && n.x === x && n.z === z && n.type === type);
+    }
+
+    function placeBuilding(type, x, y, z) {
+        if (!canPlaceAt(x, y, z)) return null;
+        const def = BUILDINGS[type];
+        if (!def) return null;
+
+        // Crystal cost
+        if (state.crystals < def.cost) return null;
+
+        // Mine needs resource node (at ground level beneath or same xz)
+        if (def.needsNode) {
+            if (!findNodeAt(x, z, def.needsNode)) return null;
+        }
+
+        // Base must be first building
+        if (type !== 'BASE' && !state.basePlaced) return null;
+
+        // Commit
+        state.crystals -= def.cost;
+
+        const mesh = makeBuildingModel(type, 1);
+        mesh.position.set(x + 0.5, y, z + 0.5);
+        mesh.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }});
+        scene.add(mesh);
+
+        const building = {
+            type,
+            x, y, z,
+            level: 1,
+            health: def.health,
+            maxHealth: def.health,
+            mesh,
+            connected: false,
+            cooldown: 0,
+            node: null,
+            productionTimer: 0,
+            buffer: {} // for recipe input accumulation
+        };
+
+        if (def.needsNode) {
+            const node = findNodeAt(x, z, def.needsNode);
+            if (node) {
+                building.node = node;
+                node.depleted = true;
+                node.mesh.visible = false;
+            }
+        }
+
+        mesh.userData.building = building;
+        buildings.push(building);
+        buildingMap.set(posKey(x, y, z), building);
+
+        if (type === 'BASE') {
+            state.basePlaced = true;
+            if (!state.started) {
+                state.started = true;
+                state.day = 1;
+                state.phase = 'day';
+                state.elapsedInPhase = 0;
+                state.time = 0;
+                hideStatus();
+                showMessage('🌅 第 1 天 - 开始建造！', 2500);
+            }
+        }
+
+        recomputeConnections();
+        updateUI();
+        return building;
+    }
+
+    function removeBuilding(building, refund = true) {
+        const idx = buildings.indexOf(building);
+        if (idx < 0) return;
+        buildings.splice(idx, 1);
+        buildingMap.delete(posKey(building.x, building.y, building.z));
+        scene.remove(building.mesh);
+
+        if (building.node) {
+            building.node.depleted = false;
+            building.node.mesh.visible = true;
+        }
+
+        if (building.type === 'BASE') {
+            // Game over if base removed
+            triggerGameOver();
+            return;
+        }
+
+        if (refund) {
+            const def = BUILDINGS[building.type];
+            state.crystals += Math.floor(def.cost * 0.5);
+        }
+
+        if (state.selectedBuilding === building) {
+            state.selectedBuilding = null;
+            hideBuildingInfo();
+        }
+
+        recomputeConnections();
+        updateUI();
+    }
+
+    function upgradeBuilding(building) {
+        const def = BUILDINGS[building.type];
+        if (building.level >= def.maxLevel) return;
+        const cost = Math.floor(def.cost * (1 + building.level * 0.5));
+        if (state.crystals < cost) return;
+        if (building.type !== 'BASE' && building.level >= state.baseLevel) return;
+
+        state.crystals -= cost;
+        building.level++;
+        building.maxHealth = Math.floor(def.health * (1 + (building.level - 1) * 0.3));
+        building.health = building.maxHealth;
+
+        // Rebuild mesh at new level
+        const oldPos = building.mesh.position.clone();
+        scene.remove(building.mesh);
+        const newMesh = makeBuildingModel(building.type, building.level);
+        newMesh.position.copy(oldPos);
+        newMesh.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; }});
+        scene.add(newMesh);
+        newMesh.userData.building = building;
+        building.mesh = newMesh;
+
+        if (building.type === 'BASE') state.baseLevel = building.level;
+
+        recomputeConnections();
+        updateUI();
+        if (state.selectedBuilding === building) showBuildingInfo(building);
+    }
+
+    // =====================================================================
+    // CONNECTIVITY (transporter chain)
+    // =====================================================================
+    function recomputeConnections() {
+        // Reset
+        buildings.forEach(b => b.connected = false);
+
+        // Base is always connected
+        const base = buildings.find(b => b.type === 'BASE');
+        if (base) base.connected = true;
+
+        // BFS from base through adjacent transporters and their neighbors
+        const queue = [];
+        if (base) queue.push(base);
+
+        // First: connect transporters adjacent to base or connected non-transporters
+        while (queue.length > 0) {
+            const b = queue.shift();
+            const neighbors = [
+                [b.x + 1, b.y, b.z], [b.x - 1, b.y, b.z],
+                [b.x, b.y, b.z + 1], [b.x, b.y, b.z - 1],
+                [b.x, b.y + 1, b.z], [b.x, b.y - 1, b.z]
+            ];
+            neighbors.forEach(([nx, ny, nz]) => {
+                const nb = buildingMap.get(posKey(nx, ny, nz));
+                if (!nb || nb.connected) return;
+                // Transporters propagate connectivity
+                if (nb.type === 'TRANSPORTER') {
+                    nb.connected = true;
+                    queue.push(nb);
+                } else if (b.type === 'TRANSPORTER') {
+                    // Non-transporter adjacent to a connected transporter is connected
+                    nb.connected = true;
+                    // Don't queue non-transporters - they don't propagate further
+                }
+            });
+        }
+    }
+
+    // =====================================================================
+    // PREVIEW / MOVE GHOST
+    // =====================================================================
+    function updatePreviewMesh() {
+        if (!state.selectedType || state.moveMode) {
+            if (previewMesh) { scene.remove(previewMesh); previewMesh = null; }
+            return;
+        }
+
+        const hit = pickGridPosition();
+        if (!hit) {
+            if (previewMesh) previewMesh.visible = false;
+            return;
+        }
+
+        if (!previewMesh || previewMesh.userData.buildingType !== state.selectedType) {
+            if (previewMesh) scene.remove(previewMesh);
+            previewMesh = makeBuildingModel(state.selectedType, 1);
+            previewMesh.userData.buildingType = state.selectedType;
+            previewMesh.traverse(c => {
+                if (c.isMesh) {
+                    c.material = c.material.clone();
+                    c.material.transparent = true;
+                    c.material.opacity = 0.5;
+                }
+            });
+            scene.add(previewMesh);
+        }
+
+        const ok = canPlaceAt(hit.x, hit.y, hit.z) &&
+                   state.crystals >= BUILDINGS[state.selectedType].cost &&
+                   (!BUILDINGS[state.selectedType].needsNode ||
+                    findNodeAt(hit.x, hit.z, BUILDINGS[state.selectedType].needsNode));
+
+        previewMesh.position.set(hit.x + 0.5, hit.y, hit.z + 0.5);
+        previewMesh.visible = true;
+        previewMesh.traverse(c => {
+            if (c.isMesh && c.material) {
+                if (ok) {
+                    c.material.opacity = 0.55;
+                } else {
+                    c.material.color.setHex(0xff3333);
+                    c.material.opacity = 0.5;
+                }
+            }
+        });
+    }
+
+    function updateMoveGhost() {
+        if (!state.moveMode || !state.selectedBuilding) {
+            if (ghostMoveMesh) { scene.remove(ghostMoveMesh); ghostMoveMesh = null; }
+            return;
+        }
+
+        if (!ghostMoveMesh) {
+            ghostMoveMesh = makeBuildingModel(state.selectedBuilding.type, state.selectedBuilding.level);
+            ghostMoveMesh.traverse(c => {
+                if (c.isMesh) {
+                    c.material = c.material.clone();
+                    c.material.transparent = true;
+                    c.material.opacity = 0.5;
+                }
+            });
+            scene.add(ghostMoveMesh);
+        }
+
+        const b = state.selectedBuilding;
+        ghostMoveMesh.position.set(b.x + 0.5, b.y, b.z + 0.5);
+
+        // Hide the real building while moving (to show ghost instead)
+        b.mesh.visible = false;
+    }
+
+    // Pick current grid cell under cursor (or default to currentY for ground)
+    function pickGridPosition() {
+        raycaster.setFromCamera(mouseNDC, camera);
+
+        // Intersect with ground + existing buildings
+        const candidates = [groundPlane, ...buildings.map(b => b.mesh)];
+        const hits = raycaster.intersectObjects(candidates, true);
+
+        if (hits.length === 0) return null;
+
+        // Find the nearest with a valid object context
+        for (const h of hits) {
+            let obj = h.object;
+            if (obj === groundPlane) {
+                const x = Math.floor(h.point.x);
+                const z = Math.floor(h.point.z);
+                return { x, y: state.currentY, z };
+            }
+            // Walk up to find building
+            while (obj && !obj.userData.building) obj = obj.parent;
+            if (obj && obj.userData.building) {
+                const b = obj.userData.building;
+                // Check face normal to decide
+                const n = h.face ? h.face.normal.clone().transformDirection(obj.matrixWorld).normalize() : new THREE.Vector3(0,1,0);
+                if (Math.abs(n.y) > Math.abs(n.x) && Math.abs(n.y) > Math.abs(n.z)) {
+                    // top/bottom face
+                    if (n.y > 0) return { x: b.x, y: b.y + 1, z: b.z };
+                    else return { x: b.x, y: Math.max(0, b.y - 1), z: b.z };
+                } else if (Math.abs(n.x) > Math.abs(n.z)) {
+                    const dx = n.x > 0 ? 1 : -1;
+                    return { x: b.x + dx, y: b.y, z: b.z };
+                } else {
+                    const dz = n.z > 0 ? 1 : -1;
+                    return { x: b.x, y: b.y, z: b.z + dz };
+                }
+            }
+        }
+        return null;
+    }
+
+    function pickBuilding() {
+        raycaster.setFromCamera(mouseNDC, camera);
+        const hits = raycaster.intersectObjects(buildings.map(b => b.mesh), true);
+        for (const h of hits) {
+            let obj = h.object;
+            while (obj && !obj.userData.building) obj = obj.parent;
+            if (obj && obj.userData.building) return obj.userData.building;
+        }
+        return null;
+    }
+
+    // =====================================================================
+    // INPUT
+    // =====================================================================
+    function initInput() {
+        const canvas = renderer.domElement;
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 2) {
+                isRightDragging = true;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+            }
+        });
+        canvas.addEventListener('mouseup', (e) => {
+            if (e.button === 2) isRightDragging = false;
+        });
+        canvas.addEventListener('mouseleave', () => { isRightDragging = false; });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+            if (isRightDragging) {
+                const dx = e.clientX - lastMouseX;
+                const dy = e.clientY - lastMouseY;
+                cameraAngleX -= dx * 0.008;
+                cameraAngleY = Math.max(0.15, Math.min(1.3, cameraAngleY - dy * 0.008));
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                updateCamera();
+            }
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            cameraDist = Math.max(8, Math.min(45, cameraDist + e.deltaY * 0.015));
+            updateCamera();
+        }, { passive: false });
+
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        canvas.addEventListener('click', (e) => {
+            if (state.moveMode) {
+                // Confirm move
+                confirmMove();
+                return;
+            }
+
+            // If a building type is selected -> try to place
+            if (state.selectedType) {
+                const hit = pickGridPosition();
+                if (hit) {
+                    placeBuilding(state.selectedType, hit.x, hit.y, hit.z);
+                }
+                return;
+            }
+
+            // Otherwise -> select building
+            const b = pickBuilding();
+            if (b) {
+                state.selectedBuilding = b;
+                showBuildingInfo(b);
+            } else {
+                state.selectedBuilding = null;
+                hideBuildingInfo();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            const k = e.key;
+            const code = e.code;
+
+            // Cancel / Exit move mode
+            if (code === 'Escape') {
+                if (state.moveMode) exitMoveMode(false);
+                else {
+                    state.selectedType = null;
+                    state.selectedBuilding = null;
+                    hideBuildingInfo();
+                    updateBuildingMenu();
+                }
+                return;
+            }
+
+            // Space - pause
+            if (code === 'Space') {
+                e.preventDefault();
+                state.isPaused = !state.isPaused;
+                document.getElementById('pause-btn').textContent = state.isPaused ? '▶️' : '⏸️';
+                return;
+            }
+
+            // Q - fast forward
+            if (k === 'q' || k === 'Q') {
+                state.isFast = !state.isFast;
+                document.getElementById('fast-btn').classList.toggle('active', state.isFast);
+                return;
+            }
+
+            // M - enter move mode if building selected
+            if ((k === 'm' || k === 'M') && state.selectedBuilding && !state.moveMode) {
+                enterMoveMode();
+                return;
+            }
+
+            // Building shortcut keys
+            const keyMap = {
+                'b': 'BASE',
+                'c': 'CRYSTAL_MINE',
+                'i': 'IRON_MINE',
+                'w': 'HARVESTER',
+                'u': 'URANIUM_MINE',
+                't': 'TRANSPORTER',
+                'r': 'WALL',
+                '1': 'CANNON_TOWER',
+                '2': 'ARROW_TOWER',
+                '3': 'LIGHTNING_TOWER',
+                '4': 'CANNON_BALL_FACTORY',
+                '5': 'ARROW_FACTORY',
+                '6': 'STEEL_FACTORY',
+                '7': 'NUCLEAR_REACTOR'
+            };
+            if (keyMap[k.toLowerCase()]) {
+                if (state.moveMode) exitMoveMode(false);
+                state.selectedType = keyMap[k.toLowerCase()];
+                state.selectedBuilding = null;
+                hideBuildingInfo();
+                updateBuildingMenu();
+                return;
+            }
+
+            // Arrow keys / WASD depending on mode
+            if (state.moveMode && state.selectedBuilding) {
+                const b = state.selectedBuilding;
+                if (k === 'ArrowUp') { b.y = Math.min(MAX_HEIGHT - 1, b.y + 1); updateMoveGhost(); e.preventDefault(); return; }
+                if (k === 'ArrowDown') { b.y = Math.max(0, b.y - 1); updateMoveGhost(); e.preventDefault(); return; }
+                if (k === 'w' || k === 'W') { moveSelected(0, 0, -1); return; }
+                if (k === 's' || k === 'S') { moveSelected(0, 0, 1); return; }
+                if (k === 'a' || k === 'A') { moveSelected(-1, 0, 0); return; }
+                if (k === 'd' || k === 'D') { moveSelected(1, 0, 0); return; }
+            } else {
+                if (k === 'ArrowUp') { state.currentY = Math.min(MAX_HEIGHT - 1, state.currentY + 1); updateUI(); e.preventDefault(); return; }
+                if (k === 'ArrowDown') { state.currentY = Math.max(0, state.currentY - 1); updateUI(); e.preventDefault(); return; }
+                if (k === 'w' || k === 'W') { cameraTarget.z = Math.max(0, cameraTarget.z - 1); updateCamera(); return; }
+                if (k === 's' || k === 'S') { cameraTarget.z = Math.min(WORLD_SIZE, cameraTarget.z + 1); updateCamera(); return; }
+                if (k === 'a' || k === 'A') { cameraTarget.x = Math.max(0, cameraTarget.x - 1); updateCamera(); return; }
+                if (k === 'd' || k === 'D') { cameraTarget.x = Math.min(WORLD_SIZE, cameraTarget.x + 1); updateCamera(); return; }
+            }
+        });
+
+        // Buttons
+        document.getElementById('pause-btn').addEventListener('click', () => {
+            state.isPaused = !state.isPaused;
+            document.getElementById('pause-btn').textContent = state.isPaused ? '▶️' : '⏸️';
+        });
+        document.getElementById('fast-btn').addEventListener('click', () => {
+            state.isFast = !state.isFast;
+            document.getElementById('fast-btn').classList.toggle('active', state.isFast);
+        });
+        document.getElementById('cancel-btn').addEventListener('click', () => {
+            if (state.moveMode) exitMoveMode(false);
+            state.selectedType = null;
+            state.selectedBuilding = null;
+            hideBuildingInfo();
+            updateBuildingMenu();
+        });
+        document.getElementById('upgrade-btn').addEventListener('click', () => {
+            if (state.selectedBuilding) upgradeBuilding(state.selectedBuilding);
+        });
+        document.getElementById('move-btn').addEventListener('click', () => {
+            if (state.selectedBuilding && !state.moveMode) enterMoveMode();
+        });
+        document.getElementById('delete-btn').addEventListener('click', () => {
+            if (state.selectedBuilding) {
+                if (state.selectedBuilding.type === 'BASE') {
+                    showMessage('❌ 不能拆除主基地！', 1500);
+                } else {
+                    removeBuilding(state.selectedBuilding, true);
+                }
+            }
+        });
+        document.getElementById('close-info-btn').addEventListener('click', () => {
+            state.selectedBuilding = null;
+            hideBuildingInfo();
+        });
+        document.getElementById('start-btn').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.add('hidden');
+            showStatus('请先放置主基地 (按 B 键选择)');
+        });
+        document.getElementById('restart-btn').addEventListener('click', restartGame);
+    }
+
+    function moveSelected(dx, dy, dz) {
+        if (!state.selectedBuilding) return;
+        const b = state.selectedBuilding;
+        const newX = b.x + dx, newY = b.y + dy, newZ = b.z + dz;
+        // Check valid cell
+        if (newX < 0 || newX >= WORLD_SIZE || newZ < 0 || newZ >= WORLD_SIZE) return;
+        if (newY < 0 || newY >= MAX_HEIGHT) return;
+        // Check not occupied (unless it's our own current spot)
+        const key = posKey(newX, newY, newZ);
+        const occ = buildingMap.get(key);
+        if (occ && occ !== b) return;
+        // Update map & position
+        buildingMap.delete(posKey(b.x, b.y, b.z));
+        b.x = newX; b.y = newY; b.z = newZ;
+        buildingMap.set(posKey(b.x, b.y, b.z), b);
+        // Check node requirement still satisfied (for mines)
+        const def = BUILDINGS[b.type];
+        if (def.needsNode) {
+            // If new position lacks a node, we need to undo
+            const node = findNodeAt(newX, newZ, def.needsNode);
+            if (!node) {
+                // undo
+                buildingMap.delete(posKey(b.x, b.y, b.z));
+                b.x -= dx; b.y -= dy; b.z -= dz;
+                buildingMap.set(posKey(b.x, b.y, b.z), b);
+                showMessage('⚠️ 矿场必须建在资源上！', 1500);
+                return;
+            }
+            // Detach old node, attach new
+            if (b.node) { b.node.depleted = false; b.node.mesh.visible = true; }
+            b.node = node;
+            node.depleted = true;
+            node.mesh.visible = false;
+        }
+        recomputeConnections();
+        updateMoveGhost();
+    }
+
+    function enterMoveMode() {
+        if (!state.selectedBuilding) return;
+        state.moveMode = true;
+        document.getElementById('move-mode-indicator').classList.add('visible');
+        updateMoveGhost();
+    }
+
+    function exitMoveMode(commit) {
+        state.moveMode = false;
+        document.getElementById('move-mode-indicator').classList.remove('visible');
+        if (ghostMoveMesh) { scene.remove(ghostMoveMesh); ghostMoveMesh = null; }
+        if (state.selectedBuilding) state.selectedBuilding.mesh.visible = true;
+    }
+
+    function confirmMove() {
+        exitMoveMode(true);
+        if (state.selectedBuilding) showBuildingInfo(state.selectedBuilding);
+        showMessage('✅ 移动完成', 1000);
+    }
+
+    // =====================================================================
+    // ZOMBIES
+    // =====================================================================
+    function spawnZombies(count) {
+        for (let i = 0; i < count; i++) {
+            spawnOneZombie();
+        }
+        showMessage(`🧟 夜晚来临！ ${count} 只僵尸来袭！`, 2500);
+    }
+
+    function spawnOneZombie() {
+        // Pick an edge
+        const side = Math.floor(Math.random() * 4);
+        let x, z;
+        if (side === 0) { x = -1; z = Math.random() * WORLD_SIZE; }
+        else if (side === 1) { x = WORLD_SIZE; z = Math.random() * WORLD_SIZE; }
+        else if (side === 2) { x = Math.random() * WORLD_SIZE; z = -1; }
+        else { x = Math.random() * WORLD_SIZE; z = WORLD_SIZE; }
+
+        const isBoss = state.day % 5 === 0 && Math.random() < 0.3;
+        const health = (isBoss ? 300 : 40) * (1 + state.day * 0.15);
+        const speed = isBoss ? 1.0 : 1.5 + Math.random() * 0.5;
+        const damage = isBoss ? 40 : 10 + state.day * 0.8;
+        const color = isBoss ? 0x5a0080 : (Math.random() < 0.2 ? 0x888800 : 0x4a5a2e);
+
+        const geo = new THREE.BoxGeometry(0.5, 0.8, 0.4);
+        const mat = new THREE.MeshLambertMaterial({ color });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x, 0.4, z);
+        mesh.castShadow = true;
+
+        // Head
+        const head = new THREE.Mesh(
+            new THREE.BoxGeometry(0.3, 0.3, 0.3),
+            new THREE.MeshLambertMaterial({ color: color * 1.1 })
+        );
+        head.position.y = 0.6;
+        mesh.add(head);
+
+        scene.add(mesh);
+
+        zombies.push({
+            x, y: 0, z,
+            mesh, head,
+            health, maxHealth: health, speed, damage,
+            cooldown: 0,
+            targetBuilding: null,
+            isBoss
+        });
+    }
+
+    function updateZombies(dt) {
+        const base = buildings.find(b => b.type === 'BASE');
+        const basePos = base ? new THREE.Vector3(base.x + 0.5, base.y + 0.5, base.z + 0.5)
+                             : new THREE.Vector3(WORLD_SIZE / 2, 0, WORLD_SIZE / 2);
+
+        for (let i = zombies.length - 1; i >= 0; i--) {
+            const z = zombies[i];
+
+            if (z.health <= 0) {
+                scene.remove(z.mesh);
+                state.crystals += z.isBoss ? 30 : 5;
+                zombies.splice(i, 1);
+                continue;
+            }
+
+            // Targeting: find nearest blocking building within small radius; else base
+            let target = null;
+            let targetPos = basePos;
+            let minDist = Infinity;
+
+            for (const b of buildings) {
+                if (b.type === 'TRANSPORTER') continue; // ignore transporters
+                const bx = b.x + 0.5, bz = b.z + 0.5;
+                const d = Math.hypot(bx - z.x, bz - z.z);
+                if (d < 1.5) {
+                    // Attack this building
+                    target = b;
+                    targetPos = new THREE.Vector3(bx, b.y + 0.5, bz);
+                    minDist = d;
+                    break;
+                }
+                if (d < minDist) {
+                    minDist = d;
+                }
+            }
+
+            // Move toward targetPos
+            const dx = targetPos.x - z.x;
+            const dz = targetPos.z - z.z;
+            const dist = Math.hypot(dx, dz);
+            if (dist > 0.5) {
+                const nx = dx / dist;
+                const nz = dz / dist;
+                z.x += nx * z.speed * dt;
+                z.z += nz * z.speed * dt;
+                z.mesh.rotation.y = Math.atan2(nx, nz);
+            }
+
+            // Attack if close to a specific building target (checked via distance < 0.8)
+            if (target && Math.hypot(target.x + 0.5 - z.x, target.z + 0.5 - z.z) < 0.8) {
+                z.cooldown -= dt;
+                if (z.cooldown <= 0) {
+                    z.cooldown = 1.0;
+                    target.health -= z.damage;
+                    // Flash red
+                    target.mesh.traverse(c => {
+                        if (c.isMesh && c.material) {
+                            const orig = c.material.color.getHex();
+                            c.material.color.setHex(0xff0000);
+                            setTimeout(() => { if (c.material) c.material.color.setHex(orig); }, 120);
+                        }
+                    });
+                    if (target.health <= 0) {
+                        if (target.type === 'BASE') { triggerGameOver(); return; }
+                        removeBuilding(target, false);
+                    }
+                }
+            }
+
+            z.mesh.position.set(z.x, 0.4, z.z);
+            // Bob animation
+            z.mesh.position.y = 0.4 + Math.abs(Math.sin(performance.now() * 0.008 + i)) * 0.1;
+            z.head.rotation.z = Math.sin(performance.now() * 0.005 + i) * 0.2;
+        }
+    }
+
+    // =====================================================================
+    // DEFENSE TOWERS / PROJECTILES
+    // =====================================================================
+    function updateDefense(dt) {
+        buildings.forEach(b => {
+            const def = BUILDINGS[b.type];
+            if (!['CANNON_TOWER', 'ARROW_TOWER', 'LIGHTNING_TOWER'].includes(b.type)) return;
+            if (!b.connected) return;
+
+            b.cooldown -= dt;
+
+            // Aim turret at nearest zombie
+            const turret = b.mesh.userData.turret;
+            let nearest = null, nd = Infinity;
+            zombies.forEach(z => {
+                const d = Math.hypot(z.x - (b.x + 0.5), z.z - (b.z + 0.5));
+                if (d < nd && d < def.range) { nd = d; nearest = z; }
+            });
+            if (turret && nearest) {
+                turret.rotation.y = Math.atan2(nearest.x - (b.x + 0.5), nearest.z - (b.z + 0.5));
+            }
+
+            if (b.cooldown > 0) return;
+            if (!nearest) return;
+
+            // Ammo check
+            if (state.resources[def.ammo] < def.ammoCost) return;
+            state.resources[def.ammo] -= def.ammoCost;
+
+            b.cooldown = def.fireRate;
+            fireProjectile(b, nearest);
+        });
+    }
+
+    function fireProjectile(tower, target) {
+        const def = BUILDINGS[tower.type];
+        const color = def.color;
+        let geo;
+        if (tower.type === 'LIGHTNING_TOWER') {
+            geo = new THREE.SphereGeometry(0.12, 8, 8);
+        } else if (tower.type === 'CANNON_TOWER') {
+            geo = new THREE.SphereGeometry(0.15, 8, 8);
+        } else {
+            geo = new THREE.BoxGeometry(0.08, 0.08, 0.3);
+        }
+        const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+            color, emissive: color, emissiveIntensity: 0.8
+        }));
+        mesh.position.set(tower.x + 0.5, tower.y + 1.0, tower.z + 0.5);
+        scene.add(mesh);
+
+        projectiles.push({
+            mesh, target, damage: def.damage * (1 + (tower.level - 1) * 0.3),
+            speed: tower.type === 'LIGHTNING_TOWER' ? 40 : 20,
+            chain: tower.type === 'LIGHTNING_TOWER' ? 3 : 0
+        });
+    }
+
+    function updateProjectiles(dt) {
+        for (let i = projectiles.length - 1; i >= 0; i--) {
+            const p = projectiles[i];
+            if (!p.target || p.target.health <= 0 || !zombies.includes(p.target)) {
+                scene.remove(p.mesh);
+                projectiles.splice(i, 1);
+                continue;
+            }
+            const dx = p.target.x - p.mesh.position.x;
+            const dy = (p.target.y + 0.4) - p.mesh.position.y;
+            const dz = p.target.z - p.mesh.position.z;
+            const dist = Math.hypot(dx, dy, dz);
+            if (dist < 0.3) {
+                // Hit
+                p.target.health -= p.damage;
+                // Chain lightning
+                if (p.chain > 0) {
+                    let remaining = p.chain;
+                    let last = p.target;
+                    while (remaining > 0) {
+                        let next = null, nd = Infinity;
+                        zombies.forEach(z => {
+                            if (z === last) return;
+                            const d = Math.hypot(z.x - last.x, z.z - last.z);
+                            if (d < 3 && d < nd) { nd = d; next = z; }
+                        });
+                        if (!next) break;
+                        next.health -= p.damage * 0.6;
+                        remaining--;
+                        last = next;
+                    }
+                }
+                scene.remove(p.mesh);
+                projectiles.splice(i, 1);
+                continue;
+            }
+            const nx = dx / dist, ny = dy / dist, nz = dz / dist;
+            p.mesh.position.x += nx * p.speed * dt;
+            p.mesh.position.y += ny * p.speed * dt;
+            p.mesh.position.z += nz * p.speed * dt;
+            p.mesh.lookAt(p.target.x, p.target.y + 0.4, p.target.z);
+        }
+    }
+
+    // =====================================================================
+    // PRODUCTION (mines + factories)
+    // =====================================================================
+    function updateProduction(dt) {
+        buildings.forEach(b => {
+            const def = BUILDINGS[b.type];
+            if (!b.connected && b.type !== 'BASE') return;
+
+            // Mines
+            if (def.output) {
+                b.productionTimer += dt * b.level;
+                const period = 2.0 / def.outputRate;
+                if (b.productionTimer >= period) {
+                    b.productionTimer -= period;
+                    state.resources[def.output] = (state.resources[def.output] || 0) + 1;
+                }
+            }
+
+            // Factories with recipe
+            if (def.recipe) {
+                b.productionTimer += dt * b.level;
+                const period = def.recipe.time;
+                if (b.productionTimer >= period) {
+                    // Check if we have enough inputs
+                    let canCraft = true;
+                    for (const [k, v] of Object.entries(def.recipe.input)) {
+                        if ((state.resources[k] || 0) < v) { canCraft = false; break; }
+                    }
+                    if (canCraft) {
+                        for (const [k, v] of Object.entries(def.recipe.input)) {
+                            state.resources[k] -= v;
+                        }
+                        for (const [k, v] of Object.entries(def.recipe.output)) {
+                            state.resources[k] = (state.resources[k] || 0) + v;
+                        }
+                        b.productionTimer -= period;
+                    } else {
+                        b.productionTimer = period; // hold until resources available
+                    }
+                }
+            }
+        });
+    }
+
+    // =====================================================================
+    // DAY/NIGHT CYCLE
+    // =====================================================================
+    function updateDayNight(dt) {
+        if (!state.started) return;
+
+        const total = state.phase === 'day' ? DAY_SECONDS : NIGHT_SECONDS;
+        const mult = state.isFast ? 3 : 1;
+        state.elapsedInPhase += dt * mult;
+        state.time = Math.min(1, state.elapsedInPhase / total);
+
+        if (state.elapsedInPhase >= total) {
+            // Switch phase
+            if (state.phase === 'day') {
+                state.phase = 'night';
+                state.elapsedInPhase = 0;
+                state.time = 0;
+                // Spawn zombies
+                const zcount = 5 + state.day * 2;
+                spawnZombies(zcount);
+                showMessage('🌙 第 ' + state.day + ' 夜 - 准备战斗！', 2500);
+                scene.background = new THREE.Color(0x1a1a3e);
+                scene.fog.color = new THREE.Color(0x1a1a3e);
+                document.getElementById('night-overlay').classList.add('night');
+            } else {
+                state.phase = 'day';
+                state.day++;
+                state.elapsedInPhase = 0;
+                state.time = 0;
+                // Clear remaining zombies at dawn (reward)
+                zombies.forEach(z => { scene.remove(z.mesh); });
+                zombies = [];
+                showMessage('🌅 第 ' + state.day + ' 天 - 继续建造！', 2500);
+                scene.background = new THREE.Color(0x87ceeb);
+                scene.fog.color = new THREE.Color(0x87ceeb);
+                document.getElementById('night-overlay').classList.remove('night');
+            }
+        }
+    }
+
+    // =====================================================================
+    // UI UPDATE
+    // =====================================================================
+    function initBuildingMenu() {
+        const menu = document.getElementById('building-menu');
+        menu.innerHTML = '';
+
+        const order = [
+            { type: 'BASE', icon: '🏠', key: 'B' },
+            { type: 'CRYSTAL_MINE', icon: '💎', key: 'C' },
+            { type: 'IRON_MINE', icon: '⛏️', key: 'I' },
+            { type: 'HARVESTER', icon: '🪵', key: 'W' },
+            { type: 'URANIUM_MINE', icon: '☢️', key: 'U' },
+            { type: 'TRANSPORTER', icon: '🔗', key: 'T' },
+            { type: 'WALL', icon: '🧱', key: 'R' },
+            { type: 'CANNON_TOWER', icon: '💥', key: '1' },
+            { type: 'ARROW_TOWER', icon: '🏹', key: '2' },
+            { type: 'LIGHTNING_TOWER', icon: '⚡', key: '3' },
+            { type: 'CANNON_BALL_FACTORY', icon: '🔴', key: '4' },
+            { type: 'ARROW_FACTORY', icon: '🟢', key: '5' },
+            { type: 'STEEL_FACTORY', icon: '🔩', key: '6' },
+            { type: 'NUCLEAR_REACTOR', icon: '☢️', key: '7' }
+        ];
+
+        order.forEach(({ type, icon, key }) => {
+            const def = BUILDINGS[type];
+            const btn = document.createElement('div');
+            btn.className = 'building-btn';
+            btn.dataset.type = type;
+            btn.title = `${def.name} (${def.cost}💎) - ${def.desc}`;
+            btn.innerHTML = `
+                <span class="icon">${icon}</span>
+                <span class="cost">${def.cost}💎</span>
+                <span class="key-hint">${key}</span>
+            `;
+            btn.addEventListener('click', () => {
+                if (state.moveMode) exitMoveMode(false);
+                state.selectedType = (state.selectedType === type) ? null : type;
+                state.selectedBuilding = null;
+                hideBuildingInfo();
+                updateBuildingMenu();
+            });
+            menu.appendChild(btn);
+        });
+    }
+
+    function updateBuildingMenu() {
+        document.querySelectorAll('.building-btn').forEach(btn => {
+            btn.classList.toggle('selected', btn.dataset.type === state.selectedType);
+        });
+    }
+
+    function updateUI() {
+        document.getElementById('crystal-count').textContent = Math.floor(state.crystals);
+        document.getElementById('iron-count').textContent = Math.floor(state.resources.iron || 0);
+        document.getElementById('wood-count').textContent = Math.floor(state.resources.wood || 0);
+        document.getElementById('steel-count').textContent = Math.floor(state.resources.steel || 0);
+        document.getElementById('uranium-count').textContent = Math.floor(state.resources.uranium || 0);
+        updateTimerUI();
+        updateBaseHealthUI();
+    }
+
+    function updateTimerUI() {
+        document.getElementById('day-number').textContent = state.day;
+        document.getElementById('phase-text').textContent = state.phase === 'day' ? '白天' : '夜晚';
+
+        // Circular arcs
+        const dayArc = document.getElementById('timer-day-arc');
+        const nightArc = document.getElementById('timer-night-arc');
+        const radius = 48;
+
+        // Day arc = top half (from angle -PI to 0, mapped via rotation of whole SVG by -90 internally)
+        // In SVG coordinate (after rotate(-90)): 0 = top. We draw full circle as day in yellow + night blue
+        // Day arc: top half (180 degrees)
+        const startDay = -Math.PI;  // left
+        const endDay = 0;            // right (top half)
+        dayArc.setAttribute('d', describeArcSvg(0, 0, radius, startDay, endDay));
+
+        const startNight = 0;
+        const endNight = Math.PI;
+        nightArc.setAttribute('d', describeArcSvg(0, 0, radius, startNight, endNight));
+
+        // Progress marker: current angle
+        // During day: progress from -PI to 0 (top half going clockwise? actually we want pointer to move smoothly)
+        // Let's map full cycle: day phase occupies first 180°, night occupies next 180°
+        let angle;
+        if (state.phase === 'day') {
+            angle = -Math.PI + state.time * Math.PI;
+        } else {
+            angle = 0 + state.time * Math.PI;
+        }
+        // rotate SVG + pointer accordingly
+        const svg = document.getElementById('timer-svg');
+        // We'll rotate pointer element; keep arcs fixed but rotate marker position
+        const marker = document.getElementById('timer-marker');
+        const mx = Math.cos(angle) * radius;
+        const my = Math.sin(angle) * radius;
+        marker.setAttribute('cx', mx);
+        marker.setAttribute('cy', my);
+
+        // Also update central pointer indicator
+        const pointer = document.getElementById('timer-pointer');
+        if (pointer) {
+            // convert angle (-PI..PI) to degrees for CSS
+            const deg = (angle * 180 / Math.PI) + 90; // adjust so 0 points up etc.
+            pointer.style.transform = `translate(-50%, -100%) rotate(${deg}deg)`;
+        }
+
+        // Color arcs based on current phase for emphasis
+        dayArc.setAttribute('stroke', state.phase === 'day' ? '#ffd700' : '#7a6630');
+        nightArc.setAttribute('stroke', state.phase === 'night' ? '#5a8dff' : '#2a3a5a');
+    }
+
+    function describeArcSvg(cx, cy, r, startAngle, endAngle) {
+        const x1 = cx + r * Math.cos(startAngle);
+        const y1 = cy + r * Math.sin(startAngle);
+        const x2 = cx + r * Math.cos(endAngle);
+        const y2 = cy + r * Math.sin(endAngle);
+        const largeArc = (endAngle - startAngle) > Math.PI ? 1 : 0;
+        return `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`;
+    }
+
+    function updateBaseHealthUI() {
+        const base = buildings.find(b => b.type === 'BASE');
+        const container = document.getElementById('base-health');
+        const bar = document.getElementById('health-bar');
+        if (!base) {
+            container.classList.remove('visible');
+            return;
+        }
+        container.classList.add('visible');
+        const pct = Math.max(0, base.health / base.maxHealth);
+        bar.style.width = (pct * 100).toFixed(1) + '%';
+        bar.className = 'health-bar-inner' + (pct < 0.3 ? ' critical' : (pct < 0.6 ? ' damaged' : ''));
+    }
+
+    function showBuildingInfo(b) {
+        const panel = document.getElementById('building-info');
+        const def = BUILDINGS[b.type];
+        document.getElementById('info-name').textContent = def.name;
+        document.getElementById('info-level').textContent = 'Lv. ' + b.level + (b.level >= def.maxLevel ? ' (MAX)' : '');
+
+        let html = `<div class="stat"><span>位置</span><span>${b.x}, ${b.y}, ${b.z}</span></div>`;
+        html += `<div class="stat"><span>生命</span><span>${Math.max(0, Math.floor(b.health))}/${b.maxHealth}</span></div>`;
+        if (def.range) html += `<div class="stat"><span>射程</span><span>${def.range}</span></div>`;
+        if (def.damage) html += `<div class="stat"><span>伤害</span><span>${(def.damage * (1 + (b.level-1)*0.3)).toFixed(1)}</span></div>`;
+        if (def.output) html += `<div class="stat"><span>产出</span><span>${resourceName(def.output)}</span></div>`;
+        if (def.recipe) {
+            const inStr = Object.entries(def.recipe.input).map(([k,v]) => `${resourceName(k)}×${v}`).join(', ');
+            const outStr = Object.entries(def.recipe.output).map(([k,v]) => `${resourceName(k)}×${v}`).join(', ');
+            html += `<div class="stat"><span>配方</span><span>${inStr} → ${outStr}</span></div>`;
+        }
+        if (def.ammo) html += `<div class="stat"><span>弹药</span><span>${resourceName(def.ammo)} (${Math.floor(state.resources[def.ammo]||0)})</span></div>`;
+        html += `<div class="stat"><span>传送带</span><span>${b.connected ? '✅ 连接' : '❌ 未连接'}</span></div>`;
+        document.getElementById('info-stats').innerHTML = html;
+
+        const upBtn = document.getElementById('upgrade-btn');
+        if (b.level >= def.maxLevel) {
+            upBtn.textContent = '已满级';
+            upBtn.disabled = true;
+        } else {
+            const cost = Math.floor(def.cost * (1 + b.level * 0.5));
+            upBtn.textContent = `升级 (${cost}💎)`;
+            upBtn.disabled = state.crystals < cost || (b.type !== 'BASE' && b.level >= state.baseLevel);
+        }
+
+        document.getElementById('delete-btn').style.display = (b.type === 'BASE') ? 'none' : '';
+
+        panel.classList.add('visible');
+    }
+
+    function hideBuildingInfo() {
+        document.getElementById('building-info').classList.remove('visible');
+    }
+
+    function resourceName(k) {
+        return { crystal: '水晶', iron: '铁矿', wood: '木材', steel: '钢', uranium: '铀',
+                 nuclear: '核能', cannonBall: '炮弹', arrow: '箭矢', arrowShaft: '箭杆' }[k] || k;
+    }
+
+    // =====================================================================
+    // STATUS / MESSAGES
+    // =====================================================================
+    function showStatus(msg) {
+        const el = document.getElementById('status-message');
+        el.textContent = msg;
+        el.classList.add('visible');
+    }
+    function hideStatus() {
+        document.getElementById('status-message').classList.remove('visible');
+    }
+
+    let noticeTimer = null;
+    function showMessage(msg, ms = 2000) {
+        // Remove existing
+        const existing = document.querySelector('.wave-notice');
+        if (existing) existing.remove();
+        const el = document.createElement('div');
+        el.className = 'wave-notice';
+        el.textContent = msg;
+        document.body.appendChild(el);
+        if (noticeTimer) clearTimeout(noticeTimer);
+        noticeTimer = setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, ms);
+    }
+
+    // =====================================================================
+    // MINIMAP
+    // =====================================================================
+    function initMinimap() {
+        const canvas = document.getElementById('minimap');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 150;
+        canvas.height = 90;
+        updateMinimap();
+    }
+    function updateMinimap() {
+        const canvas = document.getElementById('minimap');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        ctx.fillStyle = '#2d5a27';
+        ctx.fillRect(0, 0, w, h);
+        // resource nodes
+        resourceNodes.forEach(n => {
+            if (n.depleted) return;
+            const nx = (n.x / WORLD_SIZE) * w;
+            const nz = (n.z / WORLD_SIZE) * h;
+            const col = { crystal:'#ff4466', iron:'#aaaaaa', wood:'#8d6e63', uranium:'#66ff99' }[n.type] || '#fff';
+            ctx.fillStyle = col;
+            ctx.fillRect(nx - 2, nz - 2, 4, 4);
+        });
+        // buildings
+        buildings.forEach(b => {
+            const bx = (b.x / WORLD_SIZE) * w;
+            const bz = (b.z / WORLD_SIZE) * h;
+            let col = '#ffffff';
+            if (b.type === 'BASE') col = '#ffd700';
+            else if (b.type === 'WALL') col = '#607d8b';
+            else if (b.type === 'TRANSPORTER') col = '#888888';
+            else if (b.type.includes('TOWER')) col = '#ff5555';
+            else col = '#ffaa44';
+            ctx.fillStyle = col;
+            ctx.fillRect(bx - 2, bz - 2, 4, 4);
+        });
+        // zombies
+        ctx.fillStyle = '#ff00ff';
+        zombies.forEach(z => {
+            const zx = (z.x / WORLD_SIZE) * w;
+            const zz = (z.z / WORLD_SIZE) * h;
+            ctx.beginPath();
+            ctx.arc(zx, zz, 2, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+
+    // =====================================================================
+    // GAME OVER / RESTART
+    // =====================================================================
+    function triggerGameOver() {
+        if (state.gameOver) return;
+        state.gameOver = true;
+        document.getElementById('final-wave').textContent = state.day;
+        document.getElementById('game-over').classList.add('visible');
+    }
+
+    function restartGame() {
+        // Clear world
+        buildings.forEach(b => scene.remove(b.mesh));
+        zombies.forEach(z => scene.remove(z.mesh));
+        projectiles.forEach(p => scene.remove(p.mesh));
+        resourceNodes.forEach(n => scene.remove(n.mesh));
+        if (previewMesh) { scene.remove(previewMesh); previewMesh = null; }
+        if (ghostMoveMesh) { scene.remove(ghostMoveMesh); ghostMoveMesh = null; }
+
+        buildings = [];
+        zombies = [];
+        projectiles = [];
+        resourceNodes = [];
+        buildingMap.clear();
+
+        // Reset state
+        state.started = false;
+        state.day = 1;
+        state.time = 0;
+        state.phase = 'day';
+        state.elapsedInPhase = 0;
+        state.isPaused = false;
+        state.isFast = false;
+        state.crystals = 50;
+        state.resources = { crystal: 0, iron: 0, wood: 0, steel: 0, uranium: 0, nuclear: 0, cannonBall: 0, arrow: 0, arrowShaft: 0 };
+        state.selectedType = null;
+        state.selectedBuilding = null;
+        state.moveMode = false;
+        state.currentY = 0;
+        state.baseLevel = 1;
+        state.basePlaced = false;
+        state.gameOver = false;
+        scene.background = new THREE.Color(0x87ceeb);
+        scene.fog.color = new THREE.Color(0x87ceeb);
+        document.getElementById('night-overlay').classList.remove('night');
+        document.getElementById('game-over').classList.remove('visible');
+        document.getElementById('pause-btn').textContent = '⏸️';
+        document.getElementById('fast-btn').classList.remove('active');
+        document.getElementById('move-mode-indicator').classList.remove('visible');
+        hideBuildingInfo();
+        hideStatus();
+
+        generateResourceNodes();
+        initBuildingMenu();
+        updateUI();
+    }
+
+    // =====================================================================
+    // MAIN LOOP
+    // =====================================================================
+    let lastTime = 0;
+    function animate(t) {
+        requestAnimationFrame(animate);
+        if (!lastTime) lastTime = t;
+        const dt = Math.min(0.05, (t - lastTime) / 1000);
+        lastTime = t;
+
+        if (!state.isPaused && !state.gameOver) {
+            updateDayNight(dt);
+            updateProduction(dt);
+            updateDefense(dt);
+            updateProjectiles(dt);
+            updateZombies(dt);
+
+            // Animate building turrets / resource tops (already happens via rotateToward target in updateDefense)
+            buildings.forEach(b => {
+                if (b.mesh.userData.orb) {
+                    b.mesh.userData.orb.position.y = 1.25 + Math.sin(t * 0.003 + b.x) * 0.1;
+                    b.mesh.userData.orb.rotation.y += 0.02;
+                }
+            });
+
+            // Animate resource nodes (floating rotation)
+            resourceNodes.forEach((n, i) => {
+                if (!n.depleted && n.mesh && n.mesh.visible) {
+                    n.mesh.rotation.y += 0.02;
+                    n.mesh.position.y = 0.25 + Math.abs(Math.sin(t * 0.002 + i)) * 0.15;
+                }
+            });
+
+            updatePreviewMesh();
+        }
+
+        updateUI();
+        updateMinimap();
+        renderer.render(scene, camera);
+    }
+
+    // =====================================================================
+    // START
+    // =====================================================================
+    function init() {
+        initThree();
+        generateResourceNodes();
+        initBuildingMenu();
+        initMinimap();
+        initInput();
+        updateUI();
+        updateBuildingMenu();
+
+        // Before player starts, show instructions (done via HTML start-screen)
+        // We require clicking START, then player places BASE.
+
+        requestAnimationFrame(animate);
+    }
+
+    init();
+    </script>
+</body>
+</html>
